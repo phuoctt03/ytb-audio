@@ -2,12 +2,12 @@ self.addEventListener("install", event => {
   event.waitUntil(
     caches.open("ytb-app-cache").then(cache => {
       return cache.addAll([
-        "./",
-        "./index.html",
-        "./manifest.json",
-        "./icon.png",
-        "./styles.css",
-        "./script.js"
+        "./ytb-audio/",
+        "./ytb-audio/index.html",
+        "./ytb-audio/manifest.json",
+        "./ytb-audio/icon.png",
+        "./ytb-audio/styles.css",
+        "./ytb-audio/script.js"
       ]);
     })
   );
