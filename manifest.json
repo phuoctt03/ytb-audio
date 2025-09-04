@@ -7,7 +7,7 @@
   "theme_color": "#1DB954",
   "icons": [
     {
-      "src": "./icon.png",
+      "src": "./ytb-audio/icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }
