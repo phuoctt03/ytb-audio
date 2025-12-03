@@ -431,20 +431,3 @@ if (!window.YT) {
   const firstScriptTag = document.getElementsByTagName("script")[0]
   firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
 }
-
-if ("mediaSession" in navigator) {
-  navigator.mediaSession.setActionHandler("play", () => {
-    alert("HEADSET: Play");
-  });
-  navigator.mediaSession.setActionHandler("pause", () => {
-    alert("HEADSET: Pause");
-  });
-  navigator.mediaSession.setActionHandler("previoustrack", () => {
-    alert("HEADSET: Previous Track");
-  });
-  navigator.mediaSession.setActionHandler("nexttrack", () => {
-    alert("HEADSET: Next Track");
-  });
-} else {
-  alert("Media Session API không hỗ trợ trên trình duyệt này.");
-}
