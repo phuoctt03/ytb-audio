@@ -276,6 +276,13 @@ class YTBPlayer {
   }
 
   _loadVideo(videoId, autoplay=true) {
+    // Nếu đang phát đúng video này rồi → không reload, chỉ đảm bảo đang play
+    if (videoId === this.currentVideoId && this.player && this.playerReady) {
+      if (autoplay && !this.isPlaying) this.player.playVideo()
+      this.loadBtn.classList.remove('loading')
+      return
+    }
+
     this.loadBtn.classList.add('loading')
     this._setStatus('Đang tải...', 'loading')
     this.currentVideoId = videoId
