@@ -19,6 +19,7 @@ class YTBPlayer {
     this.sleepEnd = null
     this.sleepInterval = null
     this.progressInterval = null
+    this.pipWindow = null    // Document PiP window
 
     // Data
     this.queue = []
@@ -373,6 +374,7 @@ class YTBPlayer {
       this._setStatus('Đang phát...', 'playing')
       this._startWave()
       this._updateTrackInfo()
+      this._updatePipWindow()
       // Capture new videoId after auto-next
       try {
         const newId = this.player.getVideoData()?.video_id
@@ -383,6 +385,7 @@ class YTBPlayer {
       this.playBtn.classList.remove('playing')
       this._setStatus('Tạm dừng', 'paused')
       this._stopWave()
+      this._updatePipWindow()
     } else if(ev.data === S.ENDED) {
       this.isPlaying = false
       this.playBtn.classList.remove('playing')
@@ -606,6 +609,7 @@ class YTBPlayer {
         this._save()
         this._renderQueue()
         this._renderPlaylists()
+        this._updatePipWindow()
       }
     } catch(e) {}
   }
@@ -942,52 +946,137 @@ class YTBPlayer {
 
   // ─── PICTURE IN PICTURE ────────────────────────────────────
   async _togglePiP() {
-    // Kiểm tra browser support
-    if (!document.pictureInPictureEnabled) {
-      this.toast('⚠️ Trình duyệt chưa hỗ trợ PiP. Dùng Chrome/Edge.', 'warning')
+    // Đang mở PiP → đóng lại
+    if (this.pipWindow && !this.pipWindow.closed) {
+      this.pipWindow.close()
       return
     }
 
-    // Nếu đang có PiP → tắt
-    if (document.pictureInPictureElement) {
-      try {
-        await document.exitPictureInPicture()
-        this.pipBtn.classList.remove('active')
-        this.toast('⧉ Đã tắt Picture-in-Picture', 'info')
-      } catch(e) {
-        this.toast('❌ Không thể tắt PiP: ' + e.message, 'error')
-      }
-      return
-    }
-
-    // Lấy iframe của YouTube player
-    const iframe = document.querySelector('iframe#player')
-    if (!iframe) {
+    if (!this.player || !this.playerReady) {
       this.toast('⚠️ Chưa có video để bật PiP!', 'warning')
       return
     }
 
-    try {
-      await iframe.requestPictureInPicture()
-      this.pipBtn.classList.add('active')
-      this.toast('⧉ Picture-in-Picture đang bật', 'success')
+    // Document Picture-in-Picture API (Chrome 116+)
+    if (window.documentPictureInPicture) {
+      try {
+        this.pipWindow = await window.documentPictureInPicture.requestWindow({
+          width: 320, height: 200,
+          disallowReturnToOpener: false,
+        })
+        this._buildPipContent(this.pipWindow)
+        this.pipBtn.classList.add('active')
+        this.toast('⧉ Mini Player đang bật', 'success')
 
-      // Lắng nghe sự kiện khi user đóng PiP window
-      iframe.addEventListener('leavepictureinpicture', () => {
-        this.pipBtn.classList.remove('active')
-      }, { once: true })
-    } catch(e) {
-      // YouTube iframe bị chặn cross-origin PiP — fallback thông báo rõ ràng
-      console.warn('[YTBPlayer] PiP error:', e)
-      this._showPiPFallback()
+        this.pipWindow.addEventListener('pagehide', () => {
+          this.pipWindow = null
+          this.pipBtn.classList.remove('active')
+        })
+        return
+      } catch(e) {
+        console.warn('[YTBPlayer] Document PiP error:', e)
+      }
     }
+
+    // Fallback: hướng dẫn chuột phải
+    this._showPiPFallback()
+  }
+
+  _buildPipContent(win) {
+    const doc = win.document
+    const thumb = this.currentVideoId
+      ? `https://img.youtube.com/vi/${this.currentVideoId}/mqdefault.jpg`
+      : ''
+    const title  = this.trackTitle?.textContent  || 'Đang phát nhạc...'
+    const artist = this.trackArtist?.textContent || ''
+    const isPlay = this.isPlaying
+
+    doc.head.innerHTML = `
+      <meta charset="UTF-8">
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box }
+        body {
+          font-family: 'DM Sans', system-ui, sans-serif;
+          background: #0d0d14; color: #f1f5f9;
+          height: 100vh; display: flex; flex-direction: column;
+          overflow: hidden; user-select: none;
+        }
+        .pip-thumb {
+          width: 100%; height: 120px; object-fit: cover;
+          display: block; flex-shrink: 0;
+        }
+        .pip-body {
+          flex: 1; display: flex; flex-direction: column;
+          justify-content: space-between; padding: 8px 10px 6px;
+          background: linear-gradient(180deg, #13131f 0%, #0d0d14 100%);
+        }
+        .pip-meta { overflow: hidden }
+        .pip-title {
+          font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis;
+          color: #f1f5f9; margin-bottom: 1px;
+        }
+        .pip-artist {
+          font-size: 0.68rem; color: #64748b; white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis;
+        }
+        .pip-controls {
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .pip-btn {
+          background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 50%; width: 32px; height: 32px;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; color: #94a3b8; font-size: 0.75rem;
+          transition: all 0.18s ease;
+        }
+        .pip-btn:hover { background: rgba(255,255,255,0.12); color: #f1f5f9 }
+        .pip-btn.play {
+          background: linear-gradient(135deg, #7c3aed, #a855f7);
+          border-color: transparent; color: #fff; width: 38px; height: 38px;
+          font-size: 0.9rem;
+          box-shadow: 0 2px 12px rgba(124,58,237,0.5);
+        }
+        .pip-btn.play:hover { transform: scale(1.08) }
+      </style>`
+
+    doc.body.innerHTML = `
+      <img class="pip-thumb" id="pipThumb" src="${thumb}" alt="">
+      <div class="pip-body">
+        <div class="pip-meta">
+          <div class="pip-title" id="pipTitle">${title}</div>
+          <div class="pip-artist" id="pipArtist">${artist}</div>
+        </div>
+        <div class="pip-controls">
+          <button class="pip-btn" id="pipPrev" title="Bài trước">⏮</button>
+          <button class="pip-btn play" id="pipPlay">${isPlay ? '⏸' : '▶'}</button>
+          <button class="pip-btn" id="pipNext" title="Bài tiếp">⏭</button>
+        </div>
+      </div>`
+
+    doc.getElementById('pipPlay').addEventListener('click', () => {
+      this.togglePlay()
+      doc.getElementById('pipPlay').textContent = this.isPlaying ? '⏸' : '▶'
+    })
+    doc.getElementById('pipPrev').addEventListener('click', () => this.playPrev())
+    doc.getElementById('pipNext').addEventListener('click', () => this.playNext())
+  }
+
+  _updatePipWindow() {
+    if (!this.pipWindow || this.pipWindow.closed) return
+    const doc = this.pipWindow.document
+    const thumb = this.currentVideoId
+      ? `https://img.youtube.com/vi/${this.currentVideoId}/mqdefault.jpg`
+      : ''
+    const t = doc.getElementById('pipThumb');  if (t) t.src = thumb
+    const tt = doc.getElementById('pipTitle'); if (tt) tt.textContent = this.trackTitle?.textContent || ''
+    const ta = doc.getElementById('pipArtist'); if (ta) ta.textContent = this.trackArtist?.textContent || ''
+    const pb = doc.getElementById('pipPlay'); if (pb) pb.textContent = this.isPlaying ? '⏸' : '▶'
   }
 
   _showPiPFallback() {
-    // Mở popup nhỏ gợi ý user dùng PiP nạtive của trình duyệt
     let existing = document.getElementById('pipFallbackToast')
     if (existing) { existing.remove() }
-
     const el = document.createElement('div')
     el.id = 'pipFallbackToast'
     el.className = 'pip-fallback'
@@ -996,16 +1085,14 @@ class YTBPlayer {
         <span>⧉ Picture-in-Picture</span>
         <button class="pip-fb-close">✕</button>
       </div>
-      <p>YouTube iframe chặn PiP trực tiếp. Bạn có thể:</p>
+      <p>Trình duyệt chưa hỗ trợ Document PiP (cần Chrome 116+).<br>Bạn có thể:</p>
       <ul>
-        <li>Chuột phải vào video → chon <b>“Picture in picture”</b></li>
-        <li>Hoặc dùng extension <a href="https://chromewebstore.google.com/detail/picture-in-picture-extens/hkgfoiooedgoejojocmhlaklaeopbigc" target="_blank">PiP của Google</a></li>
+        <li>Chuột phải vào video → chọn <b>“Picture in picture”</b></li>
+        <li>Hoặc cài <a href="https://chromewebstore.google.com/detail/picture-in-picture-extens/hkgfoiooedgoejojocmhlaklaeopbigc" target="_blank">PiP Extension của Google</a></li>
       </ul>
     `
     document.querySelector('.main-content').appendChild(el)
-
     el.querySelector('.pip-fb-close').addEventListener('click', () => el.remove())
-    // Tự đóng sau 8s
     setTimeout(() => el?.remove(), 8000)
   }
 
