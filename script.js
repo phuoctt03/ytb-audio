@@ -961,7 +961,7 @@ class YTBPlayer {
     }
 
     // Lấy iframe của YouTube player
-    const iframe = document.querySelector('#player iframe')
+    const iframe = document.querySelector('iframe#player')
     if (!iframe) {
       this.toast('⚠️ Chưa có video để bật PiP!', 'warning')
       return
