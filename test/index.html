@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YTB Player — YouTube Audio Player</title>
+    <link rel="manifest" href="manifest.json" />
     <meta name="description" content="Nghe YouTube dưới nền với playlist, hẹn giờ, wake lock và màn hình đen">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -260,5 +261,10 @@
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="script.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/ytb-audio/service-worker.js');
+    }
+</script>
 </body>
 </html>
