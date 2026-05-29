@@ -126,6 +126,7 @@ class YTBPlayer {
     this.setCustomSleepBtn    = $('setCustomSleepBtn')
     this.autoNextToggle       = $('autoNextToggle')
     this.visualizer           = $('visualizer')
+    this.pipBtn               = $('pipBtn')
 
     // Set initial state
     this.volumeRange.value = this.volume
@@ -217,6 +218,9 @@ class YTBPlayer {
 
     // Auto next
     this.autoNextToggle.addEventListener('change', e => { this.autoNext = e.target.checked; this._save() })
+
+    // Picture in Picture
+    this.pipBtn.addEventListener('click', () => this._togglePiP())
   }
 
   // ─── THEME ─────────────────────────────────────────────────
@@ -936,6 +940,75 @@ class YTBPlayer {
   _showBlackScreen() { this.blackScreenOverlay.classList.add('active'); this._updateTrackInfo() }
   _hideBlackScreen() { this.blackScreenOverlay.classList.remove('active') }
 
+  // ─── PICTURE IN PICTURE ────────────────────────────────────
+  async _togglePiP() {
+    // Kiểm tra browser support
+    if (!document.pictureInPictureEnabled) {
+      this.toast('⚠️ Trình duyệt chưa hỗ trợ PiP. Dùng Chrome/Edge.', 'warning')
+      return
+    }
+
+    // Nếu đang có PiP → tắt
+    if (document.pictureInPictureElement) {
+      try {
+        await document.exitPictureInPicture()
+        this.pipBtn.classList.remove('active')
+        this.toast('⧉ Đã tắt Picture-in-Picture', 'info')
+      } catch(e) {
+        this.toast('❌ Không thể tắt PiP: ' + e.message, 'error')
+      }
+      return
+    }
+
+    // Lấy iframe của YouTube player
+    const iframe = document.querySelector('#player iframe')
+    if (!iframe) {
+      this.toast('⚠️ Chưa có video để bật PiP!', 'warning')
+      return
+    }
+
+    try {
+      await iframe.requestPictureInPicture()
+      this.pipBtn.classList.add('active')
+      this.toast('⧉ Picture-in-Picture đang bật', 'success')
+
+      // Lắng nghe sự kiện khi user đóng PiP window
+      iframe.addEventListener('leavepictureinpicture', () => {
+        this.pipBtn.classList.remove('active')
+      }, { once: true })
+    } catch(e) {
+      // YouTube iframe bị chặn cross-origin PiP — fallback thông báo rõ ràng
+      console.warn('[YTBPlayer] PiP error:', e)
+      this._showPiPFallback()
+    }
+  }
+
+  _showPiPFallback() {
+    // Mở popup nhỏ gợi ý user dùng PiP nạtive của trình duyệt
+    let existing = document.getElementById('pipFallbackToast')
+    if (existing) { existing.remove() }
+
+    const el = document.createElement('div')
+    el.id = 'pipFallbackToast'
+    el.className = 'pip-fallback'
+    el.innerHTML = `
+      <div class="pip-fb-header">
+        <span>⧉ Picture-in-Picture</span>
+        <button class="pip-fb-close">✕</button>
+      </div>
+      <p>YouTube iframe chặn PiP trực tiếp. Bạn có thể:</p>
+      <ul>
+        <li>Chuột phải vào video → chon <b>“Picture in picture”</b></li>
+        <li>Hoặc dùng extension <a href="https://chromewebstore.google.com/detail/picture-in-picture-extens/hkgfoiooedgoejojocmhlaklaeopbigc" target="_blank">PiP của Google</a></li>
+      </ul>
+    `
+    document.querySelector('.main-content').appendChild(el)
+
+    el.querySelector('.pip-fb-close').addEventListener('click', () => el.remove())
+    // Tự đóng sau 8s
+    setTimeout(() => el?.remove(), 8000)
+  }
+
   // ─── KEYBOARD ──────────────────────────────────────────────
   _handleKey(e) {
     if(e.target.tagName==='INPUT' || e.target.tagName==='SELECT' || e.target.tagName==='TEXTAREA') return
@@ -955,6 +1028,7 @@ class YTBPlayer {
       case 'KeyA': e.preventDefault(); this.toggleAudioMode(); break
       case 'KeyB': e.preventDefault(); this._addBookmark(); break
       case 'KeyF': e.preventDefault(); this._showBlackScreen(); break
+      case 'KeyP': e.preventDefault(); this._togglePiP(); break
     }
   }
 
