@@ -1,115 +1,270 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Audio Player</title>
+    <title>YTB Player — YouTube Audio Player</title>
     <link rel="manifest" href="manifest.json" />
+    <meta name="description" content="Nghe YouTube dưới nền với playlist, hẹn giờ, wake lock và màn hình đen">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <div class="player-header">
-            <h1 class="title">🎵 YouTube Audio Player</h1>
-            <button class="theme-toggle" id="themeToggle">🌙</button>
+
+<!-- BLACK SCREEN OVERLAY -->
+<div id="blackScreenOverlay" class="black-screen-overlay">
+    <div class="black-screen-hint">
+        <div class="bs-visualizer">
+            <div class="bs-bar"></div><div class="bs-bar"></div><div class="bs-bar"></div>
+            <div class="bs-bar"></div><div class="bs-bar"></div>
+        </div>
+        <p id="bsTitle">Đang phát nhạc...</p>
+        <small>Chạm hoặc nhấn phím bất kỳ để thoát</small>
+    </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- PLAYLIST PICKER MODAL -->
+<div id="playlistModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>🎵 Thêm vào Playlist</h3>
+            <button id="closeModal" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="playlistPickerList" class="playlist-picker-list"></div>
+            <div class="modal-divider"><span>hoặc tạo mới</span></div>
+            <div class="modal-create-row">
+                <input type="text" id="newPlaylistNameInput" placeholder="Tên playlist mới..." class="modal-input">
+                <button id="createAndAddBtn" class="btn-primary-sm">+ Tạo</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="addToQueueOnlyBtn" class="btn-secondary-sm">Chỉ thêm Queue</button>
+            <button id="playNowBtn" class="btn-primary-sm">▶ Phát ngay</button>
+        </div>
+    </div>
+</div>
+
+<!-- CREATE PLAYLIST MODAL (from sidebar) -->
+<div id="createPlaylistModal" class="modal-overlay">
+    <div class="modal-card modal-sm">
+        <div class="modal-header">
+            <h3>📂 Tạo Playlist</h3>
+            <button id="closeCreateModal" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="createPlaylistInput" placeholder="Nhập tên playlist..." class="modal-input">
+        </div>
+        <div class="modal-footer">
+            <button id="confirmCreatePlaylistBtn" class="btn-primary-sm">Tạo</button>
+        </div>
+    </div>
+</div>
+
+<div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+            <span class="sidebar-brand">📚 Thư viện</span>
+            <button id="closeSidebarBtn" class="btn-icon-bare">✕</button>
+        </div>
+        <div class="sidebar-tabs">
+            <button class="stab active" data-tab="queue">Queue</button>
+            <button class="stab" data-tab="playlists">Playlist</button>
+            <button class="stab" data-tab="bookmarks">Bookmark</button>
         </div>
 
-        <div class="input-section">
-            <div class="input-group">
-                <input type="text" id="urlInput" placeholder="Dán link YouTube hoặc ID video..." class="url-input">
-                <button id="loadBtn" class="load-btn">
-                    <span class="btn-text">Tải</span>
-                    <div class="loading-spinner"></div>
-                </button>
+        <!-- QUEUE TAB -->
+        <div class="tab-pane active" id="tab-queue">
+            <div class="pane-header">
+                <span id="queueCount" class="pane-count">0 bài</span>
+                <button id="clearQueueBtn" class="btn-icon-bare" title="Xóa queue">🗑</button>
+            </div>
+            <div id="queueList" class="scroll-list">
+                <div class="empty-state"><span>🎵</span><p>Queue trống</p></div>
             </div>
         </div>
 
-        <div class="player-container">
+        <!-- PLAYLISTS TAB -->
+        <div class="tab-pane" id="tab-playlists">
+            <div class="pane-header">
+                <span id="playlistCount" class="pane-count">0 playlist</span>
+                <button id="openCreatePlaylistBtn" class="btn-icon-bare" title="Tạo playlist">＋</button>
+            </div>
+            <div id="playlistsContainer" class="scroll-list">
+                <div class="empty-state"><span>📂</span><p>Chưa có playlist</p></div>
+            </div>
+        </div>
+
+        <!-- BOOKMARKS TAB -->
+        <div class="tab-pane" id="tab-bookmarks">
+            <div class="pane-header">
+                <span id="bookmarkCount" class="pane-count">0 bookmark</span>
+                <button id="addBookmarkBtn" class="btn-icon-bare" title="Thêm bookmark tại vị trí hiện tại">＋ Mark</button>
+            </div>
+            <div id="bookmarkList" class="scroll-list">
+                <div class="empty-state"><span>🔖</span><p>Chưa có bookmark</p></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main-content">
+        <!-- HEADER -->
+        <header class="app-header">
+            <button id="sidebarToggleBtn" class="btn-icon" title="Thư viện">☰</button>
+            <h1 class="app-title">🎵 YTB Player</h1>
+            <div class="header-right">
+                <button id="wakeLockBtn" class="btn-icon" title="Chống tắt màn hình">👁</button>
+                <button id="blackScreenBtn" class="btn-icon" title="Màn hình đen">🌑</button>
+                <button id="themeToggleBtn" class="btn-icon" title="Đổi theme">☀️</button>
+            </div>
+        </header>
+
+        <!-- INPUT -->
+        <section class="input-section">
+            <div class="input-row">
+                <input type="text" id="urlInput" placeholder="Dán link YouTube, youtu.be hoặc Video ID..." class="url-input" autocomplete="off">
+                <button id="loadBtn" class="load-btn">
+                    <span class="btn-text">Tải</span>
+                    <div class="spinner"></div>
+                </button>
+            </div>
+        </section>
+
+        <!-- PLAYER CARD -->
+        <section class="player-card">
+            <!-- VIDEO / AUDIO OVERLAY -->
             <div class="video-wrapper" id="videoWrapper">
                 <div id="player"></div>
                 <div class="audio-overlay" id="audioOverlay">
-                    <div class="audio-visualizer">
-                        <div class="wave-bar"></div>
-                        <div class="wave-bar"></div>
-                        <div class="wave-bar"></div>
-                        <div class="wave-bar"></div>
-                        <div class="wave-bar"></div>
-                    </div>
-                    <div class="track-info">
-                        <h3 class="track-title" id="trackTitle">Chưa có bài hát</h3>
-                        <p class="track-artist" id="trackArtist">Chọn video để phát</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="controls-section">
-                <div class="progress-container">
-                    <div class="time-display">
-                        <span id="currentTime">0:00</span>
-                        <span id="duration">0:00</span>
-                    </div>
-                    <div class="progress-bar" id="progressBar">
-                        <div class="progress-fill" id="progressFill"></div>
-                        <div class="progress-thumb" id="progressThumb"></div>
-                    </div>
-                </div>
-
-                <div class="main-controls">
-                    <button class="control-btn secondary" id="prevBtn" title="Bài trước">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-                        </svg>
-                    </button>
-                    
-                    <button class="play-btn" id="playBtn" title="Phát/Tạm dừng">
-                        <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                        <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                        </svg>
-                    </button>
-                    
-                    <button class="control-btn secondary" id="nextBtn" title="Bài tiếp">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="extra-controls">
-                    <button class="control-btn" id="audioModeBtn" title="Chế độ âm thanh">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                        </svg>
-                    </button>
-                    
-                    <div class="volume-control">
-                        <button class="control-btn" id="volumeBtn" title="Âm lượng">
-                            <svg class="volume-icon" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                            </svg>
-                        </button>
-                        <div class="volume-slider">
-                            <input type="range" id="volumeRange" min="0" max="100" value="100">
+                    <div class="thumb-bg" id="thumbBg"></div>
+                    <div class="overlay-content">
+                        <img id="trackThumb" class="track-thumb" src="" alt="">
+                        <div class="visualizer" id="visualizer">
+                            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+                            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+                        </div>
+                        <div class="track-meta">
+                            <h3 class="track-title" id="trackTitle">Chưa có bài hát</h3>
+                            <p class="track-artist" id="trackArtist">Chọn video để phát</p>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- PROGRESS -->
+            <div class="progress-wrap">
+                <div class="time-row">
+                    <span id="currentTime">0:00</span>
+                    <span id="totalDuration">0:00</span>
+                </div>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                    <div class="progress-thumb" id="progressThumb"></div>
+                </div>
+            </div>
+
+            <!-- MAIN CONTROLS -->
+            <div class="main-controls">
+                <button class="ctrl-btn" id="shuffleBtn" title="Ngẫu nhiên">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+                </button>
+                <button class="ctrl-btn" id="prevBtn" title="Bài trước [Shift+←]">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+                <button class="play-btn" id="playBtn" title="Phát/Dừng [Space]">
+                    <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+                <button class="ctrl-btn" id="nextBtn" title="Bài tiếp [Shift+→]">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+                <button class="ctrl-btn" id="repeatBtn" title="Lặp">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+                </button>
+            </div>
+
+            <!-- EXTRA CONTROLS -->
+            <div class="extra-controls">
+                <button class="chip-btn" id="audioModeBtn" title="Chế độ âm thanh [A]">
+                    🎵 Audio Mode
+                </button>
+                <div class="speed-wrap">
+                    <label class="chip-label">⚡</label>
+                    <select id="speedSelect" class="chip-select">
+                        <option value="0.5">0.5×</option>
+                        <option value="0.75">0.75×</option>
+                        <option value="1" selected>1×</option>
+                        <option value="1.25">1.25×</option>
+                        <option value="1.5">1.5×</option>
+                        <option value="2">2×</option>
+                    </select>
+                </div>
+                <div class="vol-wrap">
+                    <button class="chip-btn vol-btn" id="volumeBtn" title="Tắt tiếng [M]">🔊</button>
+                    <input type="range" id="volumeRange" min="0" max="100" value="100" class="vol-slider">
+                </div>
+            </div>
+
+            <!-- AUTO NEXT + SLEEP TIMER -->
+            <div class="bottom-controls">
+                <label class="toggle-label">
+                    <input type="checkbox" id="autoNextToggle" checked>
+                    <span class="toggle-track"></span>
+                    <span class="toggle-text">Auto Next</span>
+                </label>
+
+                <div class="sleep-wrap">
+                    <button class="chip-btn" id="sleepTimerBtn" title="Hẹn giờ tắt">⏰ Hẹn giờ</button>
+                    <div id="sleepOptions" class="sleep-options hidden">
+                        <button class="sleep-opt" data-min="15">15p</button>
+                        <button class="sleep-opt" data-min="30">30p</button>
+                        <button class="sleep-opt" data-min="45">45p</button>
+                        <button class="sleep-opt" data-min="60">1h</button>
+                        <button class="sleep-opt" data-min="90">1.5h</button>
+                        <div class="sleep-custom-row">
+                            <input type="number" id="customMinInput" min="1" max="999" placeholder="phút" class="sleep-input">
+                            <button id="setCustomSleepBtn" class="btn-primary-sm">OK</button>
+                        </div>
+                    </div>
+                    <div id="sleepCountdownWrap" class="sleep-countdown hidden">
+                        <span class="sleep-icon">⏰</span>
+                        <span id="sleepCountdownText">--:--</span>
+                        <button id="cancelSleepBtn" class="btn-cancel">✕</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- STATUS -->
+        <div class="status-bar" id="statusBar">
+            <span class="status-dot" id="statusDot"></span>
+            <span class="status-text" id="statusText">Sẵn sàng phát nhạc</span>
         </div>
 
-        <div class="status-display" id="statusDisplay">
-            <p class="status-text">Sẵn sàng phát nhạc</p>
+        <!-- KEYBOARD HINTS -->
+        <div class="kbd-hints">
+            <span>Space: Play/Pause</span>
+            <span>← →: Tua 10s</span>
+            <span>Shift+← →: Chuyển bài</span>
+            <span>M: Mute</span>
+            <span>A: Audio</span>
+            <span>B: Bookmark</span>
+            <span>F: Màn hình đen</span>
         </div>
-    </div>
+    </main>
+</div>
 
-    <script src="https://www.youtube.com/iframe_api"></script>
-    <script src="script.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
+<script src="https://www.youtube.com/iframe_api"></script>
+<script src="script.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/ytb-audio/service-worker.js');
-        }
-  </script>
+    }
+</script>
 </body>
 </html>
