@@ -719,6 +719,50 @@ body {
 .el-link:hover { color: #fff }
 .el-empty { font-size: 0.8rem; color: var(--text3); text-align: center; padding: 1rem }
 
+/* ─── PICTURE IN PICTURE FALLBACK ────────────────────────────── */
+.pip-fallback {
+  background: rgba(15,12,35,0.97);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0;
+  overflow: hidden;
+  backdrop-filter: var(--blur);
+  box-shadow: 0 0 30px rgba(124,58,237,0.25), var(--shadow-lg);
+  animation: slideUp 0.25s ease;
+  max-width: 360px;
+}
+.pip-fb-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(124,58,237,0.15);
+  border-bottom: 1px solid rgba(124,58,237,0.3);
+  font-size: 0.9rem; font-weight: 700; color: var(--accent2);
+  font-family: 'Space Grotesk', sans-serif;
+}
+.pip-fb-close {
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 0.9rem; padding: 2px 6px;
+  border-radius: 4px; transition: var(--trans);
+}
+.pip-fb-close:hover { color: var(--red); background: rgba(239,68,68,0.1) }
+.pip-fallback p {
+  font-size: 0.83rem; color: var(--text2); padding: 10px 14px 4px;
+}
+.pip-fallback ul {
+  list-style: none; padding: 4px 14px 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.pip-fallback ul li {
+  font-size: 0.8rem; color: var(--text2);
+  padding: 6px 10px;
+  background: var(--glass); border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.pip-fallback ul li b { color: var(--text) }
+.pip-fallback ul li a {
+  color: var(--cyan); text-decoration: none; font-weight: 600; transition: var(--trans);
+}
+.pip-fallback ul li a:hover { color: #fff }
+
 /* ─── GLOBAL TRANSITION ──────────────────────────────────────── */
 *, *::before, *::after {
   transition: background-color var(--trans), border-color var(--trans), color var(--trans);
